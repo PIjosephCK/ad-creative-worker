@@ -16,8 +16,8 @@ import { logTrainingData } from "../data/training-logger.js";
 import type { CreativePlanJson, JobCallbacks } from "./types.js";
 
 interface SceneGenOptions {
-  /** 캐릭터 참조 이미지의 ComfyUI input 이름 */
-  characterRefComfyName: string;
+  /** 캐릭터 참조 이미지의 ComfyUI input 이름 (캐릭터 없는 광고는 undefined) */
+  characterRefComfyName?: string;
   characterDesc: string;
   /** 스타일 참조 이미지의 ComfyUI input 이름 (선택) */
   styleRefComfyName?: string;
@@ -78,9 +78,13 @@ export async function generateSceneImages(
         CFG: AD_CREATIVE.CFG,
         WIDTH: AD_CREATIVE.IMAGE_WIDTH,
         HEIGHT: AD_CREATIVE.IMAGE_HEIGHT,
-        REFERENCE_IMAGE: options.characterRefComfyName,
-        IPADAPTER_WEIGHT: AD_CREATIVE.IPADAPTER_WEIGHT,
       };
+
+      // 캐릭터 참조가 있을 때만 IP-Adapter 관련 변수 설정
+      if (options.characterRefComfyName) {
+        variables.REFERENCE_IMAGE = options.characterRefComfyName;
+        variables.IPADAPTER_WEIGHT = AD_CREATIVE.IPADAPTER_WEIGHT;
+      }
 
       if (isProductScene && options.productComfyName) {
         workflowName = "scene-with-product.json";
@@ -98,8 +102,16 @@ export async function generateSceneImages(
         );
         variables.STYLE_IMAGE = options.styleRefComfyName;
         variables.STYLE_WEIGHT = 0.5;
-      } else {
+      } else if (options.characterRefComfyName) {
+        // 캐릭터가 있는 경우 — IP-Adapter 워크플로우
         workflowName = "scene-with-ipadapter.json";
+        prompt = await buildSceneImagePrompt(
+          { imagePrompt: scene.imagePrompt, camera: scene.camera, role: scene.role },
+          options.characterDesc
+        );
+      } else {
+        // 캐릭터 없는 광고 — 기본 워크플로우 (IP-Adapter 없이)
+        workflowName = "character-portrait.json";
         prompt = await buildSceneImagePrompt(
           { imagePrompt: scene.imagePrompt, camera: scene.camera, role: scene.role },
           options.characterDesc
@@ -129,9 +141,9 @@ export async function generateSceneImages(
       await logTrainingData({
         step: "scene_image",
         inputPrompt: prompt,
-        inputImages: [options.characterRefComfyName],
+        inputImages: options.characterRefComfyName ? [options.characterRefComfyName] : undefined,
         outputRaw: filename,
-        model: `juggernaut-xl+ipadapter`,
+        model: options.characterRefComfyName ? `juggernaut-xl+ipadapter` : `juggernaut-xl`,
         params: { seed, workflow: workflowName, weight: AD_CREATIVE.IPADAPTER_WEIGHT },
         durationMs: Date.now() - startTime,
         success: true,

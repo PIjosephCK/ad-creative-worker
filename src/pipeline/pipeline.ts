@@ -140,9 +140,13 @@ export async function executePlanningPipeline(
 
   await callbacks.onProgress?.(1, 2);
 
-  // Step 2: 캐릭터 후보 생성 (이미 있으면 스킵)
-  let characterSheetId: string;
-  if (creative.characterSheet) {
+  // Step 2: 캐릭터 후보 생성 (캐릭터가 필요한 경우만)
+  let characterSheetId: string | null = null;
+
+  if (!plan.character) {
+    // 캐릭터 없는 광고 (제품, 매장, 서비스 등) — 바로 씬 생성으로 진행
+    await callbacks.onStatus?.("캐릭터 없는 광고 유형 — 씬 생성으로 진행");
+  } else if (creative.characterSheet) {
     await callbacks.onStatus?.("캐릭터 시트 이미 존재 — 스킵");
     characterSheetId = creative.characterSheet.id;
   } else {
@@ -155,13 +159,15 @@ export async function executePlanningPipeline(
     characterSheetId = result.characterSheetId;
   }
 
+  // 캐릭터가 없으면 character_select를 건너뛰고 바로 scene_gen 대기
+  const nextStatus = plan.character ? "character_select" : "scene_gen";
   await prisma.adCreative.update({
     where: { id: creativeId },
-    data: { status: "character_select" },
+    data: { status: nextStatus },
   });
 
   await callbacks.onProgress?.(2, 2);
-  return { creativeId, characterSheetId };
+  return { creativeId, characterSheetId: characterSheetId ?? "" };
 }
 
 /**
@@ -179,7 +185,9 @@ export async function executeGenerationPipeline(
 
   const plan = creativePlanSchema.parse(fromJsonString(creative.planJson));
   const characterRefUrl = creative.characterSheet?.selectedUrl;
-  if (!characterRefUrl) {
+
+  // 캐릭터가 필요한 광고인데 선택이 안 된 경우만 에러
+  if (plan.character && !characterRefUrl) {
     throw new Error("캐릭터가 선택되지 않았습니다.");
   }
 
@@ -187,13 +195,16 @@ export async function executeGenerationPipeline(
   const scenes = creative.scenes;
   const totalSteps = scenes.length + 2; // 씬 이미지 + 품질 평가 + 후처리
 
-  // 캐릭터 참조 이미지를 ComfyUI input에 업로드
-  await callbacks.onStatus?.("씬 이미지 생성 준비 중...");
-  const refBuffer = await fetchImageBuffer(characterRefUrl);
-  const characterRefComfyName = await uploadInputImage(
-    refBuffer,
-    `char_ref_${creativeId}.png`
-  );
+  // 캐릭터 참조 이미지를 ComfyUI input에 업로드 (캐릭터가 있는 경우만)
+  let characterRefComfyName: string | undefined;
+  if (characterRefUrl) {
+    await callbacks.onStatus?.("씬 이미지 생성 준비 중...");
+    const refBuffer = await fetchImageBuffer(characterRefUrl);
+    characterRefComfyName = await uploadInputImage(
+      refBuffer,
+      `char_ref_${creativeId}.png`
+    );
+  }
 
   // 첨부 이미지 중 제품/스타일 참조 확인
   const attachedImgs = await prisma.attachedImage.findMany({
@@ -209,7 +220,9 @@ export async function executeGenerationPipeline(
     data: { status: "scene_gen" },
   });
 
-  const characterDesc = `${plan.character.appearance}, ${plan.character.outfit}`;
+  const characterDesc = plan.character
+    ? `${plan.character.appearance}, ${plan.character.outfit}`
+    : "";
   await generateSceneImages(
     creativeId,
     plan.scenes,

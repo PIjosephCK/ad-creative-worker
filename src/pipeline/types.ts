@@ -4,6 +4,7 @@ import { z } from "zod";
 
 export const creativePlanSchema = z.object({
   title: z.string(),
+  adType: z.enum(["product", "store", "service", "brand", "event", "person"]).optional().default("brand"),
   concept: z.string(),
   targetAudience: z.string(),
   mood: z.string(),
@@ -13,7 +14,7 @@ export const creativePlanSchema = z.object({
     appearance: z.string(),
     outfit: z.string(),
     styleRef: z.enum(["natural", "editorial", "cinematic"]),
-  }),
+  }).nullable(),
   scenes: z
     .array(
       z.object({

@@ -14,7 +14,7 @@ import type { CreativePlanJson, CharacterCandidate } from "./types.js";
  * modelRefComfyName이 있으면 첨부된 인물 사진을 참조로 사용.
  */
 export async function generateCharacterCandidates(
-  characterDesc: CreativePlanJson["character"],
+  characterDesc: NonNullable<CreativePlanJson["character"]>,
   creativeId: string,
   modelRefComfyName?: string
 ): Promise<{
