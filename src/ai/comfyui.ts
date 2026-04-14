@@ -127,16 +127,19 @@ async function fetchHistoryResult(promptId: string): Promise<ComfyResult> {
 
   const history = (await res.json()) as Record<string, unknown>;
   const entry = history[promptId] as
-    | { outputs?: Record<string, { images?: ComfyResult["images"] }> }
+    | { outputs?: Record<string, { images?: ComfyResult["images"]; gifs?: ComfyResult["images"] }> }
     | undefined;
 
   if (entry?.outputs) {
-    const firstOutput = Object.values(entry.outputs)[0];
-    if (firstOutput?.images?.length) {
-      return { images: firstOutput.images };
+    for (const output of Object.values(entry.outputs)) {
+      // AnimateDiff returns "gifs" instead of "images"
+      const items = output?.images || output?.gifs;
+      if (items?.length) {
+        return { images: items };
+      }
     }
   }
-  throw new Error("No images in history after execution_success");
+  throw new Error("No images/gifs in history after execution_success");
 }
 
 /**
@@ -154,13 +157,15 @@ export async function pollForCompletion(
     if (res.ok) {
       const history = (await res.json()) as Record<string, unknown>;
       const entry = history[promptId] as
-        | { outputs?: Record<string, { images?: ComfyResult["images"] }> }
+        | { outputs?: Record<string, { images?: ComfyResult["images"]; gifs?: ComfyResult["images"] }> }
         | undefined;
 
       if (entry?.outputs) {
-        const firstOutput = Object.values(entry.outputs)[0];
-        if (firstOutput?.images?.length) {
-          return { images: firstOutput.images };
+        for (const output of Object.values(entry.outputs)) {
+          const items = output?.images || output?.gifs;
+          if (items?.length) {
+            return { images: items };
+          }
         }
       }
     }
