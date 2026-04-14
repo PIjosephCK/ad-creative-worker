@@ -38,8 +38,8 @@ export async function generateCharacterCandidates(
         PROMPT: prompt,
         NEGATIVE_PROMPT: getNegativePrompt(),
         SEED: seed,
-        STEPS: AD_CREATIVE.FLUX_STEPS,
-        CFG: AD_CREATIVE.FLUX_CFG,
+        STEPS: AD_CREATIVE.STEPS,
+        CFG: AD_CREATIVE.CFG,
         WIDTH: AD_CREATIVE.IMAGE_WIDTH,
         HEIGHT: AD_CREATIVE.IMAGE_HEIGHT,
       };
@@ -66,7 +66,7 @@ export async function generateCharacterCandidates(
         step: "character",
         inputPrompt: prompt,
         outputRaw: filename,
-        model: modelRefComfyName ? "flux-dev+ipadapter" : "flux-dev",
+        model: modelRefComfyName ? "juggernaut-xl+ipadapter" : "juggernaut-xl",
         params: { seed, workflow: workflowName },
         durationMs: Date.now() - startTime,
         success: true,
@@ -83,7 +83,7 @@ export async function generateCharacterCandidates(
       await logTrainingData({
         step: "character",
         inputPrompt: buildCharacterPrompt(characterDesc, i),
-        model: "flux-dev",
+        model: "juggernaut-xl",
         durationMs: Date.now() - startTime,
         success: false,
         errorMsg: getErrorMessage(error),

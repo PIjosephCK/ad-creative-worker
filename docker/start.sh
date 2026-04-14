@@ -35,19 +35,19 @@ done
 # Pull models if not cached
 echo "[2/4] Checking models..."
 ollama pull "${OLLAMA_MODEL:-qwen3:8b}" 2>/dev/null || true
-ollama pull "${OLLAMA_VL_MODEL:-qwen2.5-vl:7b}" 2>/dev/null || true
+ollama pull "${OLLAMA_VL_MODEL:-minicpm-v}" 2>/dev/null || true
 
 # --- Download ComfyUI models if not present ---
 echo "[3/4] Checking ComfyUI models..."
 
-# Flux.1-dev fp8
-if [ ! -f "$MODEL_DIR/comfyui/checkpoints/flux1-dev-fp8.safetensors" ]; then
-  echo "  Downloading Flux.1-dev fp8..."
-  wget -q -O "$MODEL_DIR/comfyui/checkpoints/flux1-dev-fp8.safetensors" \
-    "https://huggingface.co/Kijai/flux-fp8/resolve/main/flux1-dev-fp8.safetensors" || true
+# Juggernaut XL v10 (SDXL)
+if [ ! -f "$MODEL_DIR/comfyui/checkpoints/juggernautXL_v10.safetensors" ]; then
+  echo "  Downloading Juggernaut XL v10..."
+  wget -q -O "$MODEL_DIR/comfyui/checkpoints/juggernautXL_v10.safetensors" \
+    "https://huggingface.co/RunDiffusion/Juggernaut-X-v10/resolve/main/juggernautXL_v10.safetensors" || true
 fi
 
-# CLIP models
+# CLIP ViT-H (for IP-Adapter vision encoder)
 if [ ! -f "$MODEL_DIR/comfyui/clip/clip-vit-h-14-laion2B-s32B-b79K.safetensors" ]; then
   echo "  Downloading CLIP ViT-H..."
   wget -q -O "$MODEL_DIR/comfyui/clip/clip-vit-h-14-laion2B-s32B-b79K.safetensors" \

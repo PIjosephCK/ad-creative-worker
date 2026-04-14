@@ -74,8 +74,8 @@ export async function generateSceneImages(
       const variables: Record<string, string | number> = {
         NEGATIVE_PROMPT: getNegativePrompt(),
         SEED: seed,
-        STEPS: AD_CREATIVE.FLUX_STEPS,
-        CFG: AD_CREATIVE.FLUX_CFG,
+        STEPS: AD_CREATIVE.STEPS,
+        CFG: AD_CREATIVE.CFG,
         WIDTH: AD_CREATIVE.IMAGE_WIDTH,
         HEIGHT: AD_CREATIVE.IMAGE_HEIGHT,
         REFERENCE_IMAGE: options.characterRefComfyName,
@@ -131,7 +131,7 @@ export async function generateSceneImages(
         inputPrompt: prompt,
         inputImages: [options.characterRefComfyName],
         outputRaw: filename,
-        model: `flux-dev+ipadapter`,
+        model: `juggernaut-xl+ipadapter`,
         params: { seed, workflow: workflowName, weight: AD_CREATIVE.IPADAPTER_WEIGHT },
         durationMs: Date.now() - startTime,
         success: true,
@@ -152,7 +152,7 @@ export async function generateSceneImages(
       await logTrainingData({
         step: "scene_image",
         inputPrompt: scene.imagePrompt,
-        model: "flux-dev+ipadapter",
+        model: "juggernaut-xl+ipadapter",
         durationMs: Date.now() - startTime,
         success: false,
         errorMsg: getErrorMessage(error),

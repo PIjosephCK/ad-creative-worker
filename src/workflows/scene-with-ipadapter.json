@@ -1,23 +1,22 @@
 {
   "1": {
-    "class_type": "UNETLoader",
+    "class_type": "CheckpointLoaderSimple",
     "inputs": {
-      "unet_name": "flux1-dev-fp8.safetensors",
-      "weight_dtype": "fp8_e4m3fn"
+      "ckpt_name": "juggernautXL_v10.safetensors"
     }
   },
   "2": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "{{PROMPT}}",
-      "clip": ["20", 0]
+      "clip": ["1", 1]
     }
   },
   "3": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "{{NEGATIVE_PROMPT}}",
-      "clip": ["20", 0]
+      "clip": ["1", 1]
     }
   },
   "4": {
@@ -59,8 +58,8 @@
       "seed": {{SEED}},
       "steps": {{STEPS}},
       "cfg": {{CFG}},
-      "sampler_name": "euler",
-      "scheduler": "normal",
+      "sampler_name": "dpm++_2m",
+      "scheduler": "karras",
       "denoise": 1.0,
       "model": ["7", 0],
       "positive": ["2", 0],
@@ -72,7 +71,7 @@
     "class_type": "VAEDecode",
     "inputs": {
       "samples": ["9", 0],
-      "vae": ["21", 0]
+      "vae": ["1", 2]
     }
   },
   "11": {
@@ -80,20 +79,6 @@
     "inputs": {
       "filename_prefix": "scene",
       "images": ["10", 0]
-    }
-  },
-  "20": {
-    "class_type": "DualCLIPLoader",
-    "inputs": {
-      "clip_name1": "clip_l.safetensors",
-      "clip_name2": "t5xxl_fp8_e4m3fn.safetensors",
-      "type": "flux"
-    }
-  },
-  "21": {
-    "class_type": "VAELoader",
-    "inputs": {
-      "vae_name": "ae.safetensors"
     }
   }
 }
