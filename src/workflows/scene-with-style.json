@@ -39,7 +39,7 @@
     }
   },
   "7": {
-    "class_type": "IPAdapterSimple",
+    "class_type": "IPAdapter",
     "inputs": {
       "ipadapter": ["5", 0],
       "clip_vision": ["6", 0],
@@ -63,7 +63,7 @@
     }
   },
   "22": {
-    "class_type": "IPAdapterSimple",
+    "class_type": "IPAdapter",
     "inputs": {
       "ipadapter": ["21", 0],
       "clip_vision": ["6", 0],
