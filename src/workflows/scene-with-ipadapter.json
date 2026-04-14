@@ -47,7 +47,9 @@
       "model": ["1", 0],
       "weight": {{IPADAPTER_WEIGHT}},
       "noise": 0.0,
-      "weight_type": "linear"
+      "weight_type": "standard",
+      "start_at": 0.0,
+      "end_at": 1.0
     }
   },
   "8": {
