@@ -25,12 +25,19 @@ export const AD_CREATIVE = {
   CHARACTER_CANDIDATES: 3,
   SCENE_DELAY_MS: 1500,
 
-  // Video (Phase 2 — deferred)
-  VIDEO_CONCURRENCY: 2,
+  // Video (AnimateDiff)
+  VIDEO_FRAMES: 16,
+  VIDEO_FPS: 8,
+  VIDEO_STEPS: 20,
+  VIDEO_CFG: 7,
+  VIDEO_WIDTH: 512,
+  VIDEO_HEIGHT: 768, // 2:3 for AnimateDiff (lower res for VRAM)
+  VIDEO_TIMEOUT_MS: 300_000, // 5 min timeout for video gen
+  VIDEO_CONCURRENCY: 1,
 
   // Output
-  OUTPUT_FORMAT: "mp4" as const,
-  OUTPUT_RESOLUTION: "1080x1920" as const,
+  OUTPUT_FORMAT: "webp" as const,
+  OUTPUT_RESOLUTION: "512x768" as const,
 } as const;
 
 export const LABELS = {

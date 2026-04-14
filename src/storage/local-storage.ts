@@ -58,6 +58,90 @@ export async function listImages(
 }
 
 /**
+ * 스토리지 용량 조회
+ */
+export async function getStorageStats(): Promise<{
+  totalFiles: number;
+  totalSizeBytes: number;
+  totalSizeMB: number;
+  subdirs: Record<string, { files: number; sizeBytes: number }>;
+}> {
+  const baseDir = OUTPUT_DIR();
+  const subdirs: Record<string, { files: number; sizeBytes: number }> = {};
+  let totalFiles = 0;
+  let totalSizeBytes = 0;
+
+  try {
+    const dirs = await fs.readdir(baseDir);
+    for (const dir of dirs) {
+      const dirPath = path.join(baseDir, dir);
+      const stat = await fs.stat(dirPath);
+      if (!stat.isDirectory()) continue;
+
+      let files = 0;
+      let sizeBytes = 0;
+      try {
+        const entries = await fs.readdir(dirPath);
+        for (const entry of entries) {
+          try {
+            const entryStat = await fs.stat(path.join(dirPath, entry));
+            if (entryStat.isFile()) {
+              files++;
+              sizeBytes += entryStat.size;
+            }
+          } catch { /* skip */ }
+        }
+      } catch { /* skip */ }
+
+      subdirs[dir] = { files, sizeBytes };
+      totalFiles += files;
+      totalSizeBytes += sizeBytes;
+    }
+  } catch { /* empty dir */ }
+
+  return {
+    totalFiles,
+    totalSizeBytes,
+    totalSizeMB: Math.round((totalSizeBytes / (1024 * 1024)) * 100) / 100,
+    subdirs,
+  };
+}
+
+/**
+ * 특정 이미지 삭제 (파일명 기반)
+ */
+export async function deleteImageByName(
+  subdir: string,
+  fileName: string
+): Promise<boolean> {
+  const filePath = path.join(OUTPUT_DIR(), subdir, fileName);
+  try {
+    await fs.unlink(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 서브디렉토리의 모든 이미지 삭제
+ */
+export async function clearSubdir(subdir: string): Promise<number> {
+  const dir = path.join(OUTPUT_DIR(), subdir);
+  let deleted = 0;
+  try {
+    const files = await fs.readdir(dir);
+    for (const f of files) {
+      try {
+        await fs.unlink(path.join(dir, f));
+        deleted++;
+      } catch { /* skip */ }
+    }
+  } catch { /* dir doesn't exist */ }
+  return deleted;
+}
+
+/**
  * 업로드된 첨부 이미지를 임시 저장하고 경로를 반환
  */
 export async function saveUploadedImage(

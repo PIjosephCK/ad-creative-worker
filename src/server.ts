@@ -7,7 +7,14 @@ import {
   executePlanningPipeline,
   executeGenerationPipeline,
 } from "./pipeline/pipeline.js";
-import { saveUploadedImage } from "./storage/local-storage.js";
+import { generateSceneVideos } from "./pipeline/video-animatediff.js";
+import {
+  saveUploadedImage,
+  listImages,
+  deleteImageByName,
+  clearSubdir,
+  getStorageStats,
+} from "./storage/local-storage.js";
 import { healthCheck as comfyHealthCheck } from "./ai/comfyui.js";
 
 const app = express();
@@ -171,6 +178,32 @@ app.post("/api/creative/:id/select-character", async (req, res) => {
   }
 });
 
+/**
+ * POST /api/pipeline/video
+ * Phase 3: 씬 영상 생성 (AnimateDiff)
+ * Body: { creativeId, sceneIds?: string[] }
+ */
+app.post("/api/pipeline/video", async (req, res) => {
+  try {
+    const { creativeId, sceneIds } = req.body;
+
+    if (!creativeId) {
+      return res.status(400).json({ error: "creativeId is required" });
+    }
+
+    const jobId = await executeJob(
+      "ad_creative_video",
+      { creativeId, sceneIds },
+      (callbacks) => generateSceneVideos(creativeId, sceneIds, callbacks)
+    );
+
+    res.json({ jobId });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: msg });
+  }
+});
+
 // === Query API ===
 
 app.get("/api/job/:id", async (req, res) => {
@@ -208,6 +241,67 @@ app.get("/api/creatives", async (_req, res) => {
       planJson: fromJsonString(c.planJson),
     }))
   );
+});
+
+// === Storage Management API ===
+
+/**
+ * GET /api/storage/stats
+ * 스토리지 용량 조회
+ */
+app.get("/api/storage/stats", async (_req, res) => {
+  const stats = await getStorageStats();
+  res.json(stats);
+});
+
+/**
+ * GET /api/storage/images?subdir=images
+ * 이미지 목록 조회
+ */
+app.get("/api/storage/images", async (req, res) => {
+  const subdir = (req.query.subdir as string) || "images";
+  const images = await listImages(subdir);
+  res.json(images);
+});
+
+/**
+ * DELETE /api/storage/images/:subdir/:filename
+ * 개별 이미지 삭제
+ */
+app.delete("/api/storage/images/:subdir/:filename", async (req, res) => {
+  const { subdir, filename } = req.params;
+  const deleted = await deleteImageByName(subdir, filename);
+  if (deleted) {
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: "File not found" });
+  }
+});
+
+/**
+ * DELETE /api/storage/clear/:subdir
+ * 서브디렉토리 전체 삭제
+ */
+app.delete("/api/storage/clear/:subdir", async (req, res) => {
+  const count = await clearSubdir(req.params.subdir);
+  res.json({ deleted: count });
+});
+
+/**
+ * DELETE /api/creative/:id/images
+ * 특정 크리에이티브의 이미지만 삭제
+ */
+app.delete("/api/creative/:id/images", async (req, res) => {
+  const { id } = req.params;
+  const images = await listImages("images");
+  let deleted = 0;
+  for (const img of images) {
+    if (img.name.includes(id)) {
+      await deleteImageByName("images", img.name);
+      deleted++;
+    }
+  }
+  res.json({ deleted });
 });
 
 // === Ollama health ===

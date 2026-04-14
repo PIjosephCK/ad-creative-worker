@@ -1,0 +1,93 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "juggernautXL_v10.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "{{PROMPT}}",
+      "clip": ["1", 1]
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "{{NEGATIVE_PROMPT}}",
+      "clip": ["1", 1]
+    }
+  },
+  "10": {
+    "class_type": "ADE_LoadAnimateDiffModel",
+    "inputs": {
+      "model_name": "mm_sdxl_v10_beta.ckpt"
+    }
+  },
+  "11": {
+    "class_type": "ADE_ApplyAnimateDiffModelSimple",
+    "inputs": {
+      "motion_model": ["10", 0]
+    }
+  },
+  "12": {
+    "class_type": "ADE_StandardUniformContextOptions",
+    "inputs": {
+      "context_length": 16,
+      "context_stride": 1,
+      "context_overlap": 4
+    }
+  },
+  "13": {
+    "class_type": "ADE_UseEvolvedSampling",
+    "inputs": {
+      "model": ["1", 0],
+      "beta_schedule": "linear (AnimateDiff-SDXL)",
+      "m_models": ["11", 0],
+      "context_options": ["12", 0]
+    }
+  },
+  "5": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": {{WIDTH}},
+      "height": {{HEIGHT}},
+      "batch_size": {{FRAMES}}
+    }
+  },
+  "6": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": {{SEED}},
+      "steps": {{STEPS}},
+      "cfg": {{CFG}},
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "model": ["13", 0],
+      "positive": ["2", 0],
+      "negative": ["3", 0],
+      "latent_image": ["5", 0]
+    }
+  },
+  "7": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["6", 0],
+      "vae": ["1", 2]
+    }
+  },
+  "8": {
+    "class_type": "ADE_AnimateDiffCombine",
+    "inputs": {
+      "images": ["7", 0],
+      "frame_rate": {{FPS}},
+      "loop_count": 0,
+      "filename_prefix": "{{FILENAME_PREFIX}}",
+      "format": "image/webp",
+      "pingpong": false,
+      "save_image": true
+    }
+  }
+}

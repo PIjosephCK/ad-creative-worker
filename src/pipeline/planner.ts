@@ -35,6 +35,7 @@ export async function generateCreativePlan(
         : `${plannerPrompt}\n\n[RETRY ${attempt}/${AD_CREATIVE.PLAN_JSON_MAX_RETRIES}] The previous response was not valid JSON. Error: ${lastError}\nPlease output ONLY a valid JSON object with no extra text.`;
 
     const raw = await generateContent(promptWithRetry, {
+      systemPrompt: systemRules,
       temperature: AD_CREATIVE.PLAN_TEMPERATURE,
       maxTokens: AD_CREATIVE.PLAN_MAX_TOKENS,
       jsonMode: true,

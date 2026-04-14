@@ -95,6 +95,13 @@ export interface CampaignOverride {
 /**
  * 기획 프롬프트 조립: system rules + planner template + override
  */
+/**
+ * Qwen system prompt 로딩 (ollama system role용)
+ */
+export async function getQwenSystemPrompt(): Promise<string> {
+  return readTemplate("system", "qwen-system.md");
+}
+
 export async function buildPlannerPrompt(
   userPrompt: string,
   options: {
@@ -103,8 +110,8 @@ export async function buildPlannerPrompt(
     campaignId?: string;
   } = {}
 ): Promise<{ prompt: string; systemRules: string }> {
-  const systemRules = await readTemplate("system", "base-rules.md");
-  const template = await readTemplate("templates", "planner.md");
+  const systemRules = await readTemplate("system", "qwen-system.md");
+  const template = await readTemplate("templates", "planner-v2.md");
   const overrideRules = await loadOverride(options.campaignId);
 
   const imageContext = options.imageAnalysis
