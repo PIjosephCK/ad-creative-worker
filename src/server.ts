@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs/promises";
 import { prisma } from "./db/prisma.js";
 import { toJsonString, fromJsonString } from "./db/json.js";
 import { executeJob, getJobStatus } from "./job/runner.js";
@@ -8,6 +9,7 @@ import {
   executeGenerationPipeline,
 } from "./pipeline/pipeline.js";
 import { generateSceneVideos, generateSingleSceneVideo } from "./pipeline/video-animatediff.js";
+import { submitHumanFeedback, getCreativeEvalSummary } from "./pipeline/evaluator.js";
 import {
   saveUploadedImage,
   listImages,
@@ -369,6 +371,123 @@ app.get("/api/creatives", async (_req, res) => {
       planJson: fromJsonString(c.planJson),
     }))
   );
+});
+
+// === Evaluation & Feedback API ===
+
+/**
+ * POST /api/eval/feedback
+ * 수동 품질 평가 (파인튜닝 데이터용)
+ * Body: { trainingLogId, score: 0-10, feedback?: string }
+ */
+app.post("/api/eval/feedback", async (req, res) => {
+  try {
+    const { trainingLogId, score, feedback } = req.body;
+    if (!trainingLogId || typeof score !== "number") {
+      return res.status(400).json({ error: "trainingLogId and score (number) required" });
+    }
+    await submitHumanFeedback(trainingLogId, score, feedback);
+    res.json({ success: true });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: msg });
+  }
+});
+
+/**
+ * GET /api/creative/:id/eval
+ * creative 품질 평가 요약
+ */
+app.get("/api/creative/:id/eval", async (req, res) => {
+  try {
+    const summary = await getCreativeEvalSummary(req.params.id);
+    res.json(summary);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: msg });
+  }
+});
+
+/**
+ * GET /api/creative/:id/training-logs
+ * creative의 모든 TrainingLog (평가 점수 포함)
+ */
+app.get("/api/creative/:id/training-logs", async (req, res) => {
+  const logs = await prisma.trainingLog.findMany({
+    where: { creativeId: req.params.id },
+    include: { evaluation: true },
+    orderBy: { createdAt: "asc" },
+  });
+  res.json(logs);
+});
+
+// === Base Image API ===
+
+/**
+ * POST /api/creative/:id/base-image
+ * 베이스 이미지 등록 (기존 creative에 참조 이미지 추가)
+ * Body: { data: base64, name: string, type: "product"|"style_reference"|"model"|"brand_asset" }
+ */
+app.post("/api/creative/:id/base-image", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, name, type } = req.body;
+
+    if (!data || !name) {
+      return res.status(400).json({ error: "data (base64) and name required" });
+    }
+
+    const buffer = Buffer.from(data, "base64");
+    const savedPath = await saveUploadedImage(buffer, name);
+
+    const attached = await prisma.attachedImage.create({
+      data: {
+        creativeId: id,
+        originalName: name,
+        storagePath: savedPath,
+        type: type || "style_reference",
+        description: null,
+        processedPath: null,
+      },
+    });
+
+    res.json({ id: attached.id, path: savedPath, type: attached.type });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: msg });
+  }
+});
+
+/**
+ * GET /api/creative/:id/base-images
+ * creative에 등록된 베이스 이미지 목록
+ */
+app.get("/api/creative/:id/base-images", async (req, res) => {
+  const images = await prisma.attachedImage.findMany({
+    where: { creativeId: req.params.id },
+    orderBy: { createdAt: "asc" },
+  });
+  res.json(images);
+});
+
+/**
+ * DELETE /api/base-image/:id
+ * 베이스 이미지 삭제
+ */
+app.delete("/api/base-image/:id", async (req, res) => {
+  try {
+    const image = await prisma.attachedImage.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!image) return res.status(404).json({ error: "Not found" });
+
+    try { await fs.unlink(image.storagePath); } catch { /* skip */ }
+    await prisma.attachedImage.delete({ where: { id: image.id } });
+    res.json({ success: true });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: msg });
+  }
 });
 
 // === Storage Management API ===
