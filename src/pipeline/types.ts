@@ -27,6 +27,7 @@ export const creativePlanSchema = z.object({
         motionType: z.enum(["veo", "ken_burns"]),
         kenBurnsDirection: z
           .enum(["zoom_in", "zoom_out", "pan_left", "pan_right"])
+          .nullable()
           .optional(),
         camera: z.string(),
         transitionFrom: z.string().optional(),
