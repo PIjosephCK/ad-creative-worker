@@ -4,4 +4,4 @@ dist/
 *.db
 *.db-journal
 output/
-data/
+/data/
