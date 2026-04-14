@@ -12,7 +12,9 @@
     "db:push": "prisma db push",
     "export:plan": "tsx src/data/export-training-data.ts --step plan",
     "export:character": "tsx src/data/export-training-data.ts --step character",
-    "export:scene": "tsx src/data/export-training-data.ts --step scene_image"
+    "export:scene": "tsx src/data/export-training-data.ts --step scene_image",
+    "export:dpo": "tsx src/data/export-training-data.ts --step plan --format dpo",
+    "export:quality": "tsx src/data/export-training-data.ts --step plan --format qwen-lora --min-score 7"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",

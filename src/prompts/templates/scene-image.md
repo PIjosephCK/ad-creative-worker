@@ -1,0 +1,1 @@
+{{image_prompt}}, {{character_desc}}, {{camera}} shot, photorealistic, masterpiece, best quality, high resolution, 9:16 vertical aspect ratio, advertising photography

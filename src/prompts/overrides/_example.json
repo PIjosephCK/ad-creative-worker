@@ -1,0 +1,15 @@
+{
+  "campaignId": "example-campaign",
+  "styleGuide": "Warm, golden-hour color palette. Soft natural lighting. Lifestyle brand aesthetic — casual but aspirational.",
+  "additionalRules": [
+    "Product must appear in at least 2 scenes",
+    "Character should always be smiling",
+    "Background should include outdoor/nature elements"
+  ],
+  "negativePromptAppend": "indoor, dark lighting, corporate, formal",
+  "characterOverride": {
+    "styleRef": "natural"
+  },
+  "qualityThreshold": 6.0,
+  "promptSuffix": "warm golden hour lighting, lifestyle brand aesthetic"
+}

@@ -2,7 +2,7 @@ import { prisma } from "../db/prisma.js";
 import { AD_CREATIVE } from "../constants.js";
 import { loadWorkflow, generateImage, uploadInputImage } from "../ai/comfyui.js";
 import { saveImage } from "../storage/local-storage.js";
-import { buildCharacterPrompt, getNegativePrompt } from "./prompts.js";
+import { buildCharacterPrompt, getNegativePrompt } from "../prompts/loader.js";
 import { getErrorMessage } from "./utils.js";
 import { toJsonString } from "../db/json.js";
 import { logTrainingData } from "../data/training-logger.js";
@@ -26,7 +26,7 @@ export async function generateCharacterCandidates(
   for (let i = 0; i < AD_CREATIVE.CHARACTER_CANDIDATES; i++) {
     const startTime = Date.now();
     try {
-      const prompt = buildCharacterPrompt(characterDesc, i);
+      const prompt = await buildCharacterPrompt(characterDesc, i);
       const seed = Math.floor(Math.random() * 2 ** 32);
 
       // 인물 참조 이미지가 있으면 IP-Adapter 워크플로우 사용
@@ -36,7 +36,7 @@ export async function generateCharacterCandidates(
 
       const variables: Record<string, string | number> = {
         PROMPT: prompt,
-        NEGATIVE_PROMPT: getNegativePrompt(),
+        NEGATIVE_PROMPT: await getNegativePrompt(),
         SEED: seed,
         STEPS: AD_CREATIVE.STEPS,
         CFG: AD_CREATIVE.CFG,
@@ -82,7 +82,7 @@ export async function generateCharacterCandidates(
 
       await logTrainingData({
         step: "character",
-        inputPrompt: buildCharacterPrompt(characterDesc, i),
+        inputPrompt: await buildCharacterPrompt(characterDesc, i),
         model: "juggernaut-xl",
         durationMs: Date.now() - startTime,
         success: false,

@@ -5,7 +5,7 @@
       "seed": {{SEED}},
       "steps": {{STEPS}},
       "cfg": {{CFG}},
-      "sampler_name": "dpm++_2m",
+      "sampler_name": "dpmpp_2m",
       "scheduler": "karras",
       "denoise": 1.0,
       "model": ["4", 0],

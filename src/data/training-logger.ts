@@ -14,6 +14,7 @@ interface TrainingEntry {
   success: boolean;
   errorMsg?: string;
   creativeId?: string;
+  systemPrompt?: string;
 }
 
 /**
@@ -38,6 +39,7 @@ export async function logTrainingData(entry: TrainingEntry): Promise<void> {
         success: entry.success,
         errorMsg: entry.errorMsg,
         creativeId: entry.creativeId,
+        systemPrompt: entry.systemPrompt,
       },
     });
   } catch (e) {

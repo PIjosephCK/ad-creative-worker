@@ -28,7 +28,7 @@ export async function analyzeAttachedImages(
           ? "image/webp"
           : "image/jpeg";
 
-    const prompt = buildImageAnalysisPrompt(1);
+    const prompt = await buildImageAnalysisPrompt(1);
     const raw = await analyzeImage(prompt, base64, mimeType);
     const json = extractJson(raw);
 

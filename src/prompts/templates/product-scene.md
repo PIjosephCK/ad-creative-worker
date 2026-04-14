@@ -1,0 +1,1 @@
+{{image_prompt}}, {{character_desc}}, holding or near {{product_desc}}, {{camera}} shot, photorealistic, masterpiece, best quality, product placement, advertising photography, 9:16 vertical

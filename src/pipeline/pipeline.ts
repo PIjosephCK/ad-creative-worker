@@ -9,6 +9,7 @@ import { analyzeAttachedImages, formatAnalysisForPlanner } from "./image-analyze
 import { preprocessImages } from "./image-processor.js";
 import { uploadInputImage } from "../ai/comfyui.js";
 import { logTrainingData } from "../data/training-logger.js";
+import { evaluateGeneratedImage, getCreativeEvalSummary } from "./evaluator.js";
 import fs from "fs/promises";
 
 /**
@@ -16,7 +17,8 @@ import fs from "fs/promises";
  */
 export async function executePlanningPipeline(
   creativeId: string,
-  callbacks: JobCallbacks
+  callbacks: JobCallbacks,
+  options?: { campaignId?: string }
 ): Promise<{ creativeId: string; characterSheetId: string }> {
   const creative = await prisma.adCreative.findUniqueOrThrow({
     where: { id: creativeId },
@@ -24,6 +26,7 @@ export async function executePlanningPipeline(
   });
 
   const attachedImages = fromJsonString<string[]>(creative.attachedImages);
+  const campaignId = options?.campaignId;
 
   // Step 0: 첨부 이미지 분석 (있을 경우)
   let imageAnalysisText: string | undefined;
@@ -81,6 +84,8 @@ export async function executePlanningPipeline(
 
   // Step 1: 기획서 생성 (이미 있으면 스킵)
   let plan: CreativePlanJson;
+  let systemRules: string | undefined;
+
   if (creative.planJson && creative.scenes.length > 0) {
     await callbacks.onStatus?.("기획서 이미 존재 — 스킵");
     plan = creativePlanSchema.parse(fromJsonString(creative.planJson));
@@ -89,16 +94,20 @@ export async function executePlanningPipeline(
     await callbacks.onProgress?.(0, 2);
 
     const startTime = Date.now();
-    plan = await generateCreativePlan(creative.prompt, {
+    const result = await generateCreativePlan(creative.prompt, {
       totalDuration: creative.totalDuration,
       imageAnalysis: imageAnalysisText,
+      campaignId,
     });
+    plan = result.plan;
+    systemRules = result.systemRules;
 
     await logTrainingData({
       step: "plan",
       inputPrompt: creative.prompt,
       outputParsed: JSON.stringify(plan),
       model: process.env.OLLAMA_MODEL || "qwen3:8b",
+      systemPrompt: systemRules,
       durationMs: Date.now() - startTime,
       success: true,
       creativeId,
@@ -156,12 +165,12 @@ export async function executePlanningPipeline(
 }
 
 /**
- * Phase 2 파이프라인: 씬 이미지 생성 + 후처리
- * (영상 생성은 Phase 2로 미룸)
+ * Phase 2 파이프라인: 씬 이미지 생성 + 자동 품질 평가 + 후처리
  */
 export async function executeGenerationPipeline(
   creativeId: string,
-  callbacks: JobCallbacks
+  callbacks: JobCallbacks,
+  options?: { campaignId?: string }
 ): Promise<{ creativeId: string }> {
   const creative = await prisma.adCreative.findUniqueOrThrow({
     where: { id: creativeId },
@@ -174,8 +183,9 @@ export async function executeGenerationPipeline(
     throw new Error("캐릭터가 선택되지 않았습니다.");
   }
 
+  const campaignId = options?.campaignId;
   const scenes = creative.scenes;
-  const totalSteps = scenes.length + 1; // 씬 이미지 + 후처리
+  const totalSteps = scenes.length + 2; // 씬 이미지 + 품질 평가 + 후처리
 
   // 캐릭터 참조 이미지를 ComfyUI input에 업로드
   await callbacks.onStatus?.("씬 이미지 생성 준비 중...");
@@ -222,6 +232,23 @@ export async function executeGenerationPipeline(
     }
   );
 
+  // Step 4: 자동 품질 평가
+  await callbacks.onStatus?.("생성 이미지 품질 평가 중...");
+  await evaluateCreativeImages(creativeId, plan.mood, campaignId);
+  await callbacks.onProgress?.(scenes.length + 1, totalSteps);
+
+  // 평가 요약 로깅
+  const evalSummary = await getCreativeEvalSummary(creativeId);
+  if (evalSummary.needsRegeneration > 0) {
+    await callbacks.onStatus?.(
+      `품질 평가 완료 — ${evalSummary.needsRegeneration}개 씬 재생성 권장 (평균 ${evalSummary.averageScore}점)`
+    );
+  } else {
+    await callbacks.onStatus?.(
+      `품질 평가 완료 — 평균 ${evalSummary.averageScore}점`
+    );
+  }
+
   // Step 5: 후처리 메타데이터
   await callbacks.onStatus?.("후처리 메타데이터 생성 중...");
   const finalScenes = await prisma.adScene.findMany({
@@ -241,6 +268,78 @@ export async function executeGenerationPipeline(
   await callbacks.onProgress?.(totalSteps, totalSteps);
   await callbacks.onStatus?.("크리에이티브 생성 완료!");
   return { creativeId };
+}
+
+/**
+ * creative의 성공한 이미지 생성 로그들을 찾아 자동 평가를 실행한다.
+ */
+async function evaluateCreativeImages(
+  creativeId: string,
+  mood: string,
+  campaignId?: string
+): Promise<void> {
+  const logs = await prisma.trainingLog.findMany({
+    where: {
+      creativeId,
+      step: { in: ["character", "scene_image"] },
+      success: true,
+      evaluation: null, // 아직 평가 안 된 것만
+    },
+  });
+
+  // 씬 정보 조회 (role, camera 매핑용)
+  const scenes = await prisma.adScene.findMany({
+    where: { creativeId },
+    orderBy: { sceneIndex: "asc" },
+  });
+
+  for (const log of logs) {
+    // outputRaw가 이미지 파일명이므로 실제 경로를 찾는다
+    if (!log.outputRaw) continue;
+
+    const outputDir = process.env.OUTPUT_DIR || "./output";
+    const comfyDir =
+      process.env.COMFYUI_OUTPUT_DIR || "/opt/comfyui/output";
+    const possiblePaths = [
+      log.outputRaw,
+      `${outputDir}/images/${log.outputRaw}`,
+      `${comfyDir}/${log.outputRaw}`,
+    ];
+
+    let imagePath: string | null = null;
+    for (const p of possiblePaths) {
+      try {
+        await fs.access(p);
+        imagePath = p;
+        break;
+      } catch {
+        continue;
+      }
+    }
+
+    if (!imagePath) continue;
+
+    // 해당 씬 찾기
+    const scene = scenes.find(
+      (s) =>
+        log.inputPrompt.includes(s.imagePrompt.slice(0, 30)) ||
+        log.step === "character"
+    );
+
+    try {
+      await evaluateGeneratedImage({
+        trainingLogId: log.id,
+        imagePath,
+        originalPrompt: log.inputPrompt,
+        sceneRole: scene?.role || (log.step === "character" ? "character" : "body"),
+        camera: scene?.motionType || "medium shot",
+        mood,
+        campaignId,
+      });
+    } catch (e) {
+      console.error(`Eval failed for log ${log.id}:`, e);
+    }
+  }
 }
 
 /**

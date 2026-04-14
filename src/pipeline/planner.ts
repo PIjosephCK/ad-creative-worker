@@ -13,13 +13,17 @@ export async function generateCreativePlan(
   options?: {
     totalDuration?: number;
     imageAnalysis?: string;
+    campaignId?: string;
   }
-): Promise<CreativePlanJson> {
+): Promise<{ plan: CreativePlanJson; systemRules: string }> {
   const totalDuration = options?.totalDuration || AD_CREATIVE.DEFAULT_DURATION;
-  const plannerPrompt = buildPlannerPrompt(
+  const { prompt: plannerPrompt, systemRules } = await buildPlannerPrompt(
     prompt,
-    totalDuration,
-    options?.imageAnalysis
+    {
+      totalDuration,
+      imageAnalysis: options?.imageAnalysis,
+      campaignId: options?.campaignId,
+    }
   );
 
   let lastError: string = "";
@@ -43,7 +47,7 @@ export async function generateCreativePlan(
     }
 
     try {
-      return validatePlan(json, totalDuration);
+      return { plan: validatePlan(json, totalDuration), systemRules };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
     }
@@ -52,6 +56,19 @@ export async function generateCreativePlan(
   throw new Error(
     `기획서 JSON 생성에 실패했습니다 (${AD_CREATIVE.PLAN_JSON_MAX_RETRIES}회 시도). 마지막 에러: ${lastError}`
   );
+}
+
+/** @internal planner 내부에서만 사용 — plan만 필요한 기존 호출 호환용 */
+export async function generateCreativePlanCompat(
+  prompt: string,
+  options?: {
+    totalDuration?: number;
+    imageAnalysis?: string;
+    campaignId?: string;
+  }
+): Promise<CreativePlanJson> {
+  const { plan } = await generateCreativePlan(prompt, options);
+  return plan;
 }
 
 function validatePlan(

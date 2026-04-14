@@ -1,0 +1,1 @@
+worst quality, low quality, blurry, deformed, disfigured, extra limbs, bad anatomy, text, watermark, signature, cropped, out of frame, ugly, duplicate

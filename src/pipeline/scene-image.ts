@@ -10,7 +10,7 @@ import {
   buildSceneImagePrompt,
   buildProductScenePrompt,
   getNegativePrompt,
-} from "./prompts.js";
+} from "../prompts/loader.js";
 import { getErrorMessage, mergeSceneMetadata } from "./utils.js";
 import { logTrainingData } from "../data/training-logger.js";
 import type { CreativePlanJson, JobCallbacks } from "./types.js";
@@ -72,7 +72,7 @@ export async function generateSceneImages(
       const seed = Math.floor(Math.random() * 2 ** 32);
 
       const variables: Record<string, string | number> = {
-        NEGATIVE_PROMPT: getNegativePrompt(),
+        NEGATIVE_PROMPT: await getNegativePrompt(),
         SEED: seed,
         STEPS: AD_CREATIVE.STEPS,
         CFG: AD_CREATIVE.CFG,
@@ -84,7 +84,7 @@ export async function generateSceneImages(
 
       if (isProductScene && options.productComfyName) {
         workflowName = "scene-with-product.json";
-        prompt = buildProductScenePrompt(
+        prompt = await buildProductScenePrompt(
           { imagePrompt: scene.imagePrompt, camera: scene.camera },
           options.characterDesc,
           options.productDesc || "product"
@@ -92,7 +92,7 @@ export async function generateSceneImages(
         variables.PRODUCT_IMAGE = options.productComfyName;
       } else if (options.styleRefComfyName) {
         workflowName = "scene-with-style.json";
-        prompt = buildSceneImagePrompt(
+        prompt = await buildSceneImagePrompt(
           { imagePrompt: scene.imagePrompt, camera: scene.camera, role: scene.role },
           options.characterDesc
         );
@@ -100,7 +100,7 @@ export async function generateSceneImages(
         variables.STYLE_WEIGHT = 0.5;
       } else {
         workflowName = "scene-with-ipadapter.json";
-        prompt = buildSceneImagePrompt(
+        prompt = await buildSceneImagePrompt(
           { imagePrompt: scene.imagePrompt, camera: scene.camera, role: scene.role },
           options.characterDesc
         );

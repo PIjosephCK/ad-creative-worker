@@ -98,11 +98,36 @@ model TrainingLog {
   success      Boolean  @default(true)
   errorMsg     String?
   creativeId   String?
+  systemPrompt String?  // system prompt used (for fine-tuning export)
   createdAt    DateTime @default(now())
+
+  // Quality evaluation scores (filled by auto-evaluator)
+  evaluation   QualityEval?
 
   @@index([step])
   @@index([creativeId])
   @@index([createdAt])
+}
+
+model QualityEval {
+  id                    String   @id @default(cuid())
+  trainingLogId         String   @unique
+  promptAdherence       Float    // 0-10
+  visualQuality         Float    // 0-10
+  characterConsistency  Float    // 0-10
+  brandSafety           Float    // 0-10
+  adEffectiveness       Float    // 0-10
+  averageScore          Float    // weighted average
+  issues                String?  // JSON array of strings
+  suggestions           String?  // JSON array of strings
+  shouldRegenerate      Boolean  @default(false)
+  humanOverride         Float?   // manual score override (null = no override)
+  humanFeedback         String?  // manual feedback text
+  createdAt             DateTime @default(now())
+  trainingLog           TrainingLog @relation(fields: [trainingLogId], references: [id], onDelete: Cascade)
+
+  @@index([averageScore])
+  @@index([shouldRegenerate])
 }
 
 // === Attached Image Metadata ===
