@@ -3,7 +3,7 @@ import path from "path";
 import { prisma } from "../db/prisma.js";
 
 interface TrainingEntry {
-  step: "plan" | "character" | "scene_image" | "image_analysis";
+  step: "plan" | "character" | "scene_image" | "scene_video" | "image_analysis";
   inputPrompt: string;
   inputImages?: string[];
   outputRaw?: string;

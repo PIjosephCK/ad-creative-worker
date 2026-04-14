@@ -40,6 +40,7 @@ if [ ! -d "$COMFYUI_DIR" ]; then
   cd "$COMFYUI_DIR/custom_nodes"
   git clone --depth 1 https://github.com/cubiq/ComfyUI_IPAdapter_plus.git
   git clone --depth 1 https://github.com/ZHO-ZHO-ZHO/ComfyUI-BRIA_AI-RMBG.git
+  git clone --depth 1 https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git
 else
   echo "[3/6] ComfyUI already installed"
 fi
@@ -69,7 +70,21 @@ cd "$WORKER_DIR"
 npm install --silent 2>/dev/null
 npx prisma generate 2>/dev/null
 npx prisma db push --accept-data-loss 2>/dev/null || true
-mkdir -p data output
+mkdir -p data output output/videos
+
+# FFmpeg
+if ! command -v ffmpeg &>/dev/null; then
+  echo "  Installing ffmpeg..."
+  apt-get install -y -qq ffmpeg >/dev/null 2>&1
+fi
+
+# AnimateDiff motion model
+if [ ! -f "$COMFYUI_DIR/models/animatediff_models/mm_sdxl_v10_beta.ckpt" ]; then
+  echo "  Downloading AnimateDiff SDXL motion model..."
+  mkdir -p "$COMFYUI_DIR/models/animatediff_models"
+  wget -q -O "$COMFYUI_DIR/models/animatediff_models/mm_sdxl_v10_beta.ckpt" \
+    "https://huggingface.co/guoyww/animatediff/resolve/main/mm_sdxl_v10_beta.ckpt" || true
+fi
 
 # --- [6/6] Start all services ---
 echo "[6/6] Starting services..."

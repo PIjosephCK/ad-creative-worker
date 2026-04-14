@@ -34,6 +34,8 @@ export const AD_CREATIVE = {
   VIDEO_HEIGHT: 768, // 2:3 for AnimateDiff (lower res for VRAM)
   VIDEO_TIMEOUT_MS: 300_000, // 5 min timeout for video gen
   VIDEO_CONCURRENCY: 1,
+  VIDEO_IPADAPTER_WEIGHT: 0.5,
+  VIDEO_OUTPUT_DIR: "videos" as const,
 
   // Output
   OUTPUT_FORMAT: "webp" as const,

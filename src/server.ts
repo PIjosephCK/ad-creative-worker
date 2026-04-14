@@ -7,15 +7,20 @@ import {
   executePlanningPipeline,
   executeGenerationPipeline,
 } from "./pipeline/pipeline.js";
-import { generateSceneVideos } from "./pipeline/video-animatediff.js";
+import { generateSceneVideos, generateSingleSceneVideo } from "./pipeline/video-animatediff.js";
 import {
   saveUploadedImage,
   listImages,
   deleteImageByName,
   clearSubdir,
   getStorageStats,
+  listVideos,
+  deleteVideosByCreativeId,
 } from "./storage/local-storage.js";
 import { healthCheck as comfyHealthCheck } from "./ai/comfyui.js";
+import { execFile } from "child_process";
+import { promisify } from "util";
+const execFileAsync = promisify(execFile);
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -202,6 +207,129 @@ app.post("/api/pipeline/video", async (req, res) => {
     const msg = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: msg });
   }
+});
+
+/**
+ * POST /api/pipeline/video/scene/:sceneId
+ * 개별 씬 영상 재생성
+ * Body: { promptOverride?, force? }
+ */
+app.post("/api/pipeline/video/scene/:sceneId", async (req, res) => {
+  try {
+    const { sceneId } = req.params;
+    const { promptOverride, force } = req.body || {};
+
+    const jobId = await executeJob(
+      "ad_creative_video_single",
+      { sceneId, promptOverride, force },
+      (callbacks) => generateSingleSceneVideo(sceneId, { promptOverride, force }, callbacks)
+    );
+
+    res.json({ jobId });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: msg });
+  }
+});
+
+// === Video Query & Management API ===
+
+/**
+ * GET /api/creative/:id/videos
+ * 씬별 영상 상태 조회
+ */
+app.get("/api/creative/:id/videos", async (req, res) => {
+  const scenes = await prisma.adScene.findMany({
+    where: { creativeId: req.params.id },
+    orderBy: { sceneIndex: "asc" },
+    select: {
+      id: true,
+      sceneIndex: true,
+      role: true,
+      videoUrl: true,
+      videoPath: true,
+      veoStatus: true,
+      imageUrl: true,
+      videoPrompt: true,
+      duration: true,
+    },
+  });
+  res.json({ scenes });
+});
+
+/**
+ * DELETE /api/creative/:id/videos
+ * creative 영상 전체 삭제 + DB 초기화
+ */
+app.delete("/api/creative/:id/videos", async (req, res) => {
+  const { id } = req.params;
+  const deleted = await deleteVideosByCreativeId(id);
+  await prisma.adScene.updateMany({
+    where: { creativeId: id },
+    data: { videoUrl: null, videoPath: null, veoStatus: null },
+  });
+  res.json({ deleted });
+});
+
+/**
+ * GET /api/video/:sceneId/download
+ * 영상 파일 스트리밍 (브라우저 재생/다운로드)
+ */
+app.get("/api/video/:sceneId/download", async (req, res) => {
+  const scene = await prisma.adScene.findUnique({
+    where: { id: req.params.sceneId },
+    select: { videoPath: true },
+  });
+  if (!scene?.videoPath) {
+    return res.status(404).json({ error: "Video not found" });
+  }
+  const download = req.query.download === "true";
+  res.sendFile(path.resolve(scene.videoPath), {
+    headers: {
+      "Content-Type": scene.videoPath.endsWith(".mp4") ? "video/mp4" : "image/webp",
+      "Content-Disposition": download ? "attachment" : "inline",
+    },
+  });
+});
+
+/**
+ * GET /api/video/:sceneId/mp4
+ * WebP → MP4 변환 후 반환
+ */
+app.get("/api/video/:sceneId/mp4", async (req, res) => {
+  try {
+    const scene = await prisma.adScene.findUnique({
+      where: { id: req.params.sceneId },
+      select: { videoPath: true },
+    });
+    if (!scene?.videoPath) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+    const mp4Path = scene.videoPath.replace(/\.(webp|gif)$/, ".mp4");
+    await execFileAsync("ffmpeg", [
+      "-i", scene.videoPath,
+      "-c:v", "libx264",
+      "-pix_fmt", "yuv420p",
+      "-movflags", "+faststart",
+      "-y",
+      mp4Path,
+    ]);
+    res.sendFile(path.resolve(mp4Path), {
+      headers: { "Content-Type": "video/mp4" },
+    });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: `MP4 conversion failed: ${msg}` });
+  }
+});
+
+/**
+ * GET /api/storage/videos
+ * 영상 목록 조회
+ */
+app.get("/api/storage/videos", async (_req, res) => {
+  const videos = await listVideos();
+  res.json(videos);
 });
 
 // === Query API ===

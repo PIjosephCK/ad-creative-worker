@@ -142,6 +142,73 @@ export async function clearSubdir(subdir: string): Promise<number> {
 }
 
 /**
+ * 영상을 로컬 파일시스템에 저장하고 접근 가능한 URL을 반환한다.
+ */
+export async function saveVideo(
+  buffer: Buffer,
+  fileName: string,
+  mimeType: string
+): Promise<{ url: string; path: string }> {
+  const timestamp = Date.now();
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const filePath = path.join(OUTPUT_DIR(), "videos", `${timestamp}_${safeName}`);
+
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, buffer);
+
+  const relativePath = path.relative(OUTPUT_DIR(), filePath).replace(/\\/g, "/");
+  const url = `${BASE_URL()}/output/${relativePath}`;
+
+  return { url, path: filePath };
+}
+
+/**
+ * 영상 파일 목록 조회
+ */
+export async function listVideos(): Promise<
+  Array<{ name: string; url: string; path: string; sizeMB: number }>
+> {
+  const dir = path.join(OUTPUT_DIR(), "videos");
+  try {
+    const files = await fs.readdir(dir);
+    const results = [];
+    for (const f of files) {
+      if (!/\.(webp|gif|mp4)$/i.test(f)) continue;
+      const filePath = path.join(dir, f);
+      const stat = await fs.stat(filePath);
+      results.push({
+        name: f,
+        url: `${BASE_URL()}/output/videos/${f}`,
+        path: filePath,
+        sizeMB: Math.round((stat.size / (1024 * 1024)) * 100) / 100,
+      });
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * creative별 영상 삭제
+ */
+export async function deleteVideosByCreativeId(
+  creativeId: string
+): Promise<number> {
+  const videos = await listVideos();
+  let deleted = 0;
+  for (const v of videos) {
+    if (v.name.includes(creativeId)) {
+      try {
+        await fs.unlink(v.path);
+        deleted++;
+      } catch { /* skip */ }
+    }
+  }
+  return deleted;
+}
+
+/**
  * 업로드된 첨부 이미지를 임시 저장하고 경로를 반환
  */
 export async function saveUploadedImage(
