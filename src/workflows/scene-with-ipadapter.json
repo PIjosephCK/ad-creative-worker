@@ -1,22 +1,23 @@
 {
   "1": {
-    "class_type": "CheckpointLoaderSimple",
+    "class_type": "UNETLoader",
     "inputs": {
-      "ckpt_name": "flux1-dev-fp8.safetensors"
+      "unet_name": "flux1-dev-fp8.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
     }
   },
   "2": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "{{PROMPT}}",
-      "clip": ["1", 1]
+      "clip": ["20", 0]
     }
   },
   "3": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "{{NEGATIVE_PROMPT}}",
-      "clip": ["1", 1]
+      "clip": ["20", 0]
     }
   },
   "4": {
@@ -76,7 +77,7 @@
     "class_type": "VAEDecode",
     "inputs": {
       "samples": ["9", 0],
-      "vae": ["1", 2]
+      "vae": ["21", 0]
     }
   },
   "11": {
@@ -84,6 +85,20 @@
     "inputs": {
       "filename_prefix": "scene",
       "images": ["10", 0]
+    }
+  },
+  "20": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "clip_l.safetensors",
+      "clip_name2": "t5xxl_fp8_e4m3fn.safetensors",
+      "type": "flux"
+    }
+  },
+  "21": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
     }
   }
 }
