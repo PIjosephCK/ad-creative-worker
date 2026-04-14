@@ -27,29 +27,22 @@
     }
   },
   "5": {
-    "class_type": "IPAdapterModelLoader",
+    "class_type": "IPAdapterUnifiedLoader",
     "inputs": {
-      "ipadapter_file": "ip-adapter-plus-face_sdxl_vit-h.safetensors"
-    }
-  },
-  "6": {
-    "class_type": "CLIPVisionLoader",
-    "inputs": {
-      "clip_name": "clip-vit-h-14-laion2B-s32B-b79K.safetensors"
+      "model": ["1", 0],
+      "preset": "PLUS FACE (portraits)"
     }
   },
   "7": {
     "class_type": "IPAdapter",
     "inputs": {
-      "ipadapter": ["5", 0],
-      "clip_vision": ["6", 0],
+      "ipadapter": ["5", 1],
+      "model": ["5", 0],
       "image": ["4", 0],
-      "model": ["1", 0],
       "weight": {{IPADAPTER_WEIGHT}},
-      "noise": 0.0,
-      "weight_type": "standard",
       "start_at": 0.0,
-      "end_at": 1.0
+      "end_at": 1.0,
+      "weight_type": "standard"
     }
   },
   "20": {
@@ -59,23 +52,22 @@
     }
   },
   "21": {
-    "class_type": "IPAdapterModelLoader",
+    "class_type": "IPAdapterUnifiedLoader",
     "inputs": {
-      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+      "model": ["7", 0],
+      "preset": "PLUS (high strength)"
     }
   },
   "22": {
     "class_type": "IPAdapter",
     "inputs": {
-      "ipadapter": ["21", 0],
-      "clip_vision": ["6", 0],
+      "ipadapter": ["21", 1],
+      "model": ["21", 0],
       "image": ["20", 0],
-      "model": ["7", 0],
       "weight": {{STYLE_WEIGHT}},
-      "noise": 0.0,
-      "weight_type": "standard",
       "start_at": 0.0,
-      "end_at": 1.0
+      "end_at": 1.0,
+      "weight_type": "style transfer"
     }
   },
   "8": {
