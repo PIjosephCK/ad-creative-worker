@@ -58,6 +58,14 @@ function validatePlan(
   json: Record<string, unknown>,
   totalDuration: number
 ): CreativePlanJson {
+  // Qwen이 null을 넣는 경우 optional 필드를 정리
+  if (Array.isArray((json as any).scenes)) {
+    for (const scene of (json as any).scenes) {
+      if (scene.kenBurnsDirection === null) delete scene.kenBurnsDirection;
+      if (scene.transitionFrom === null) delete scene.transitionFrom;
+      if (scene.textOverlay === null) scene.textOverlay = null; // nullable 허용
+    }
+  }
   const result = creativePlanSchema.safeParse(json);
   if (!result.success) {
     const errors = result.error.issues
