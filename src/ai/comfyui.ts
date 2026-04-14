@@ -54,6 +54,7 @@ export async function queuePrompt(
 
 /**
  * WebSocket으로 ComfyUI 작업 완료 대기
+ * ComfyUI 0.19.0: "executed" = per-node, "execution_success" = per-prompt
  */
 export async function waitForCompletion(
   promptId: string,
@@ -61,46 +62,81 @@ export async function waitForCompletion(
 ): Promise<ComfyResult> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`${COMFYUI_WS_URL()}?clientId=worker`);
-    const timer = setTimeout(() => {
+    let settled = false;
+
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       ws.close();
-      reject(new Error(`ComfyUI timeout after ${timeoutMs}ms`));
+      fn();
+    };
+
+    const timer = setTimeout(() => {
+      settle(() => reject(new Error(`ComfyUI timeout after ${timeoutMs}ms`)));
     }, timeoutMs);
 
     ws.on("message", (raw) => {
       try {
-        const msg = JSON.parse(raw.toString());
+        const text = raw.toString();
+        if (!text.startsWith("{")) return; // skip binary preview frames
+
+        const msg = JSON.parse(text);
+
+        // per-node completion with output (legacy + some versions)
         if (msg.type === "executed" && msg.data?.prompt_id === promptId) {
-          clearTimeout(timer);
-          ws.close();
           const output = msg.data.output;
           if (output?.images) {
-            resolve({ images: output.images });
-          } else {
-            reject(new Error("ComfyUI 실행 완료했지만 이미지 출력 없음"));
+            settle(() => resolve({ images: output.images }));
+            return;
           }
         }
-        if (
-          msg.type === "execution_error" &&
-          msg.data?.prompt_id === promptId
-        ) {
-          clearTimeout(timer);
-          ws.close();
-          reject(
-            new Error(
-              `ComfyUI 실행 에러: ${msg.data.exception_message || "unknown"}`
-            )
+
+        // per-prompt completion (ComfyUI 0.19.0+)
+        if (msg.type === "execution_success" && msg.data?.prompt_id === promptId) {
+          settle(() => {
+            fetchHistoryResult(promptId).then(resolve).catch(reject);
+          });
+          return;
+        }
+
+        // execution error
+        if (msg.type === "execution_error" && msg.data?.prompt_id === promptId) {
+          settle(() =>
+            reject(new Error(`ComfyUI 실행 에러: ${msg.data.exception_message || "unknown"}`))
           );
+          return;
         }
       } catch {
-        // ignore non-JSON messages
+        // ignore non-JSON messages (binary preview frames)
       }
     });
 
     ws.on("error", (err) => {
-      clearTimeout(timer);
-      reject(new Error(`ComfyUI WebSocket error: ${err.message}`));
+      settle(() => reject(new Error(`ComfyUI WebSocket error: ${err.message}`)));
     });
   });
+}
+
+/**
+ * ComfyUI history API에서 실행 결과 가져오기
+ */
+async function fetchHistoryResult(promptId: string): Promise<ComfyResult> {
+  const res = await fetch(`${COMFYUI_URL()}/history/${promptId}`);
+  if (!res.ok) throw new Error(`History fetch failed: ${res.status}`);
+
+  const history = (await res.json()) as Record<string, unknown>;
+  const entry = history[promptId] as
+    | { outputs?: Record<string, { images?: ComfyResult["images"] }> }
+    | undefined;
+
+  if (entry?.outputs) {
+    const firstOutput = Object.values(entry.outputs)[0];
+    if (firstOutput?.images?.length) {
+      return { images: firstOutput.images };
+    }
+  }
+  throw new Error("No images in history after execution_success");
 }
 
 /**

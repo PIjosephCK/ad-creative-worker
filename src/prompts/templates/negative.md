@@ -1,1 +1,1 @@
-worst quality, low quality, blurry, deformed, disfigured, extra limbs, bad anatomy, text, watermark, signature, cropped, out of frame, ugly, duplicate
+worst quality, low quality, normal quality, blurry, deformed, disfigured, extra limbs, bad anatomy, bad hands, missing fingers, extra fingers, fused fingers, text, watermark, signature, cropped, out of frame, ugly, duplicate, morbid, mutilated, poorly drawn face, mutation, jpeg artifacts, long neck, lowres

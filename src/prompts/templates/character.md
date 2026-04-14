@@ -1,1 +1,1 @@
-upper body portrait of a person for advertising campaign, {{appearance}}, wearing {{outfit}}, {{age_range}}, {{gender}}, {{pose}}, {{style}}, masterpiece, best quality, high resolution, 9:16 vertical aspect ratio
+RAW photo, upper body portrait of a person for advertising campaign, {{appearance}}, wearing {{outfit}}, {{age_range}}, {{gender}}, {{pose}}, {{style}}, masterpiece, best quality, 8k uhd, high resolution, sharp focus, professional photography, natural lighting, 9:16 vertical aspect ratio

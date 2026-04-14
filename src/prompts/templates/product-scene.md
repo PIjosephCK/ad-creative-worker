@@ -1,1 +1,1 @@
-{{image_prompt}}, {{character_desc}}, holding or near {{product_desc}}, {{camera}} shot, photorealistic, masterpiece, best quality, product placement, advertising photography, 9:16 vertical
+RAW photo, {{image_prompt}}, {{character_desc}}, holding or near {{product_desc}}, {{camera}} shot, photorealistic, masterpiece, best quality, 8k uhd, sharp focus, product placement, professional advertising photography, studio lighting, 9:16 vertical aspect ratio

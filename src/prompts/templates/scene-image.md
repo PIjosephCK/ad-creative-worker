@@ -1,1 +1,1 @@
-{{image_prompt}}, {{character_desc}}, {{camera}} shot, photorealistic, masterpiece, best quality, high resolution, 9:16 vertical aspect ratio, advertising photography
+RAW photo, {{image_prompt}}, {{character_desc}}, {{camera}} shot, photorealistic, masterpiece, best quality, 8k uhd, high resolution, sharp focus, professional advertising photography, cinematic lighting, 9:16 vertical aspect ratio
