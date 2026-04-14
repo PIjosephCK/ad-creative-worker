@@ -1,0 +1,33 @@
+{
+  "name": "ad-creative-worker",
+  "version": "1.0.0",
+  "description": "Self-hosted ad creative generation pipeline (Qwen + ComfyUI)",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "export:plan": "tsx src/data/export-training-data.ts --step plan",
+    "export:character": "tsx src/data/export-training-data.ts --step character",
+    "export:scene": "tsx src/data/export-training-data.ts --step scene_image"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.4.1",
+    "express": "^4.21.0",
+    "openai": "^4.73.0",
+    "sharp": "^0.33.5",
+    "ws": "^8.18.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.13",
+    "prisma": "^6.4.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

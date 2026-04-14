@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// === Ad Creative Pipeline ===
+
+model AdCreative {
+  id               String          @id @default(cuid())
+  prompt           String
+  planJson         String?         // JSON stored as text (SQLite)
+  totalDuration    Int             @default(45)
+  status           String          @default("planning")
+  parentCreativeId String?
+  jobId            String?
+  attachedImages   String?         // JSON array of uploaded image paths
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  parent           AdCreative?     @relation("CreativeVariants", fields: [parentCreativeId], references: [id])
+  variants         AdCreative[]    @relation("CreativeVariants")
+  characterSheet   CharacterSheet?
+  scenes           AdScene[]
+
+  @@index([status])
+  @@index([parentCreativeId])
+}
+
+model CharacterSheet {
+  id            String     @id @default(cuid())
+  creativeId    String     @unique
+  description   String
+  candidates    String     // JSON array of CharacterCandidate
+  selectedIndex Int?
+  selectedUrl   String?
+  createdAt     DateTime   @default(now())
+  creative      AdCreative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+}
+
+model AdScene {
+  id             String     @id @default(cuid())
+  creativeId     String
+  sceneIndex     Int
+  role           String
+  imagePrompt    String
+  videoPrompt    String
+  textOverlay    String?
+  duration       Int
+  motionType     String     @default("veo")
+  imageUrl       String?
+  imagePath      String?
+  videoUrl       String?
+  videoPath      String?
+  veoStatus      String?
+  metadata       String?    // JSON stored as text
+  createdAt      DateTime   @default(now())
+  creative       AdCreative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+
+  @@index([creativeId])
+  @@unique([creativeId, sceneIndex])
+}
+
+// === Background Jobs ===
+
+model Job {
+  id            String    @id @default(cuid())
+  type          String
+  status        String    @default("pending")
+  progress      Int       @default(0)
+  totalSteps    Int       @default(0)
+  statusMessage String?
+  inputData     String?   // JSON
+  outputData    String?   // JSON
+  error         String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([type])
+  @@index([status])
+}
+
+// === Training Data (for fine-tuning) ===
+
+model TrainingLog {
+  id           String   @id @default(cuid())
+  step         String   // "plan" | "character" | "scene_image" | "image_analysis"
+  inputPrompt  String
+  inputImages  String?  // JSON array of file paths
+  outputRaw    String?  // raw AI response
+  outputParsed String?  // parsed/validated output as JSON
+  model        String   // "qwen3:8b", "flux-dev", "qwen2.5-vl:7b"
+  params       String?  // JSON: temperature, workflow params, etc.
+  durationMs   Int?
+  success      Boolean  @default(true)
+  errorMsg     String?
+  creativeId   String?
+  createdAt    DateTime @default(now())
+
+  @@index([step])
+  @@index([creativeId])
+  @@index([createdAt])
+}
+
+// === Attached Image Metadata ===
+
+model AttachedImage {
+  id           String   @id @default(cuid())
+  creativeId   String
+  originalName String
+  storagePath  String
+  type         String   // "product" | "style_reference" | "model" | "brand_asset"
+  description  String?  // AI-generated description
+  processedPath String? // path after preprocessing (e.g., background removed)
+  metadata     String?  // JSON: colors, dimensions, etc.
+  createdAt    DateTime @default(now())
+
+  @@index([creativeId])
+  @@index([type])
+}

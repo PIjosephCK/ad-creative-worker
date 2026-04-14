@@ -1,0 +1,81 @@
+import { generateContent, extractJson } from "../ai/ollama.js";
+import { AD_CREATIVE } from "../constants.js";
+import { creativePlanSchema, type CreativePlanJson } from "./types.js";
+import { buildPlannerPrompt } from "./prompts.js";
+
+/**
+ * Step 1: 자연어 한 줄 → JSON 기획서 생성
+ * Qwen3-8B via Ollama로 광고 크리에이티브 기획 JSON을 생성한다.
+ * JSON 안정성을 위해 최대 3회 재시도.
+ */
+export async function generateCreativePlan(
+  prompt: string,
+  options?: {
+    totalDuration?: number;
+    imageAnalysis?: string;
+  }
+): Promise<CreativePlanJson> {
+  const totalDuration = options?.totalDuration || AD_CREATIVE.DEFAULT_DURATION;
+  const plannerPrompt = buildPlannerPrompt(
+    prompt,
+    totalDuration,
+    options?.imageAnalysis
+  );
+
+  let lastError: string = "";
+
+  for (let attempt = 0; attempt < AD_CREATIVE.PLAN_JSON_MAX_RETRIES; attempt++) {
+    const promptWithRetry =
+      attempt === 0
+        ? plannerPrompt
+        : `${plannerPrompt}\n\n[RETRY ${attempt}/${AD_CREATIVE.PLAN_JSON_MAX_RETRIES}] The previous response was not valid JSON. Error: ${lastError}\nPlease output ONLY a valid JSON object with no extra text.`;
+
+    const raw = await generateContent(promptWithRetry, {
+      temperature: AD_CREATIVE.PLAN_TEMPERATURE,
+      maxTokens: AD_CREATIVE.PLAN_MAX_TOKENS,
+      jsonMode: true,
+    });
+
+    const json = extractJson(raw);
+    if (!json) {
+      lastError = "응답에서 JSON을 추출할 수 없습니다.";
+      continue;
+    }
+
+    try {
+      return validatePlan(json, totalDuration);
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  throw new Error(
+    `기획서 JSON 생성에 실패했습니다 (${AD_CREATIVE.PLAN_JSON_MAX_RETRIES}회 시도). 마지막 에러: ${lastError}`
+  );
+}
+
+function validatePlan(
+  json: Record<string, unknown>,
+  totalDuration: number
+): CreativePlanJson {
+  const result = creativePlanSchema.safeParse(json);
+  if (!result.success) {
+    const errors = result.error.issues
+      .map((i) => `${i.path.join(".")}: ${i.message}`)
+      .join(", ");
+    throw new Error(`기획서 검증 실패: ${errors}`);
+  }
+
+  const plan = result.data;
+  const totalSceneDuration = plan.scenes.reduce(
+    (sum, s) => sum + s.duration,
+    0
+  );
+  if (totalSceneDuration !== totalDuration) {
+    console.warn(
+      `씬 duration 합계(${totalSceneDuration}초)가 목표(${totalDuration}초)와 다릅니다.`
+    );
+  }
+
+  return plan;
+}
